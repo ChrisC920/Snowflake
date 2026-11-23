@@ -5,8 +5,10 @@ import SwiftUI
 /// Shared app state, created once and read by both the SwiftUI scenes and the AppKit delegate.
 @MainActor
 enum AppModel {
-    static let settings = AppSettings()
-    static let registry = ModuleRegistry(modules: ModuleCatalog.makeAll())
+    /// Real preferences, or a throwaway store in UI preview mode so screenshots never touch them.
+    static let defaults: UserDefaults = UIPreview.isActive ? UIPreview.makeDefaults() : .standard
+    static let settings = AppSettings(defaults: defaults)
+    static let registry = ModuleRegistry(modules: ModuleCatalog.makeAll(defaults: defaults), defaults: defaults)
 }
 
 @main
@@ -42,7 +44,7 @@ struct SnowflakeApp: App {
 
     private func insertion(for style: MenuStyle) -> Binding<Bool> {
         Binding {
-            settings.showInMenuBar && settings.menuStyle == style
+            !UIPreview.isActive && settings.showInMenuBar && settings.menuStyle == style
         } set: { inserted in
             // The person removed the item (⌘-drag). Respect it.
             if !inserted, settings.menuStyle == style {

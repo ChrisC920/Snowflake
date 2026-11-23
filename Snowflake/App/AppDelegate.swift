@@ -8,6 +8,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_: Notification) {
+        if UIPreview.isActive {
+            UIPreview.present(settings: AppModel.settings, registry: registry)
+            return
+        }
         AppModel.settings.applyActivationPolicy()
         registry.activateEnabledModules()
         Log.app.info("Snowflake launched")

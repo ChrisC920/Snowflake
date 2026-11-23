@@ -11,7 +11,7 @@ APP_DEBUG  := $(DERIVED)/Build/Products/Debug/Snowflake.app
 APP_RELEASE:= $(DERIVED)/Build/Products/Release/Snowflake.app
 XCODEBUILD := xcodebuild -project $(PROJECT) -scheme $(SCHEME) -derivedDataPath $(DERIVED)
 
-.PHONY: help bootstrap generate build release test lint format icons run clean zip
+.PHONY: help bootstrap generate build release test lint format icons run screenshots clean zip
 
 help: ## Show this help
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -48,6 +48,9 @@ icons: ## Regenerate icon artwork from scripts/make-icon-art.py
 run: build ## Build and launch the app
 	-pkill -x Snowflake
 	open $(APP_DEBUG)
+
+screenshots: build ## Capture every UI state in light and dark → build/screenshots
+	scripts/screenshots.sh $(STATES)
 
 zip: release ## Package the Release build as build/Snowflake.zip
 	ditto -c -k --keepParent $(APP_RELEASE) build/Snowflake.zip

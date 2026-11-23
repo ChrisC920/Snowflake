@@ -1,3 +1,4 @@
+import Foundation
 import SnowflakeKit
 
 /// Every built-in tool, in the order they appear in the panel and Settings.
@@ -6,10 +7,10 @@ import SnowflakeKit
 /// and add it here. See `docs/ADDING_A_MODULE.md`.
 @MainActor
 public enum ModuleCatalog {
-    public static func makeAll() -> [any SnowflakeModule] {
+    public static func makeAll(defaults: UserDefaults = .standard) -> [any SnowflakeModule] {
         [
-            KeepAwakeModule(),
-            ClipboardModule(),
+            KeepAwakeModule(defaults: defaults),
+            ClipboardModule(defaults: defaults),
         ]
     }
 }

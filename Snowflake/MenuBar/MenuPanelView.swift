@@ -9,6 +9,11 @@ struct MenuPanelView: View {
     @State private var expandedID: String?
     @Namespace private var glass
 
+    /// - Parameter initialExpandedID: A tile to show expanded on open (used by UI preview mode).
+    init(initialExpandedID: String? = nil) {
+        _expandedID = State(initialValue: initialExpandedID)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
