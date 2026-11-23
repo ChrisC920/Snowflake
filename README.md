@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/ChrisC920/Snowflake/actions/workflows/ci.yml"><img src="https://github.com/ChrisC920/Snowflake/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/macOS-15%2B-blue" alt="macOS 15+">
+  <img src="https://img.shields.io/badge/macOS-26%2B-blue" alt="macOS 26+">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license">
 </p>
 
@@ -33,7 +33,7 @@ Releases are not notarized yet, so the first time you open Snowflake, right-clic
 
 ## Build from source
 
-Requirements: macOS 15 or later, Xcode 26 or later, [Homebrew](https://brew.sh).
+Requirements: macOS 26 Tahoe or later, Xcode 26 or later, [Homebrew](https://brew.sh).
 
 ```bash
 git clone https://github.com/ChrisC920/Snowflake.git
@@ -61,7 +61,7 @@ docs/                       Brand guide, how to add a tool
 
 ## Design
 
-Snowflake follows Apple's Liquid Glass guidance for macOS 26 and later. Glass is used only for controls and navigation, and the app follows your system accent color by default, with optional "Frost" accents. On macOS 15 it falls back to standard materials. See [docs/BRAND.md](docs/BRAND.md).
+Snowflake follows Apple's Liquid Glass guidance for macOS 26 and later. Glass is used only for controls and navigation, and the app follows your system accent color by default, with optional "Frost" accents. See [docs/BRAND.md](docs/BRAND.md).
 
 ## Contributing
 

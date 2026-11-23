@@ -53,7 +53,7 @@ struct MenuPanelView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Button("Browse Tools") { showSettings() }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
@@ -104,12 +104,12 @@ private struct PanelIconButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 13, weight: .medium))
-                .frame(width: 26, height: 26)
-                .contentShape(.circle)
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 16, height: 16)
         }
-        .buttonStyle(.plain)
-        .snowGlass(in: .circle, interactive: true)
+        .buttonStyle(.glass)
+        .buttonBorderShape(.circle)
+        .controlSize(.small)
         .help(label)
         .accessibilityLabel(label)
     }

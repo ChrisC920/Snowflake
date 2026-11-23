@@ -9,7 +9,7 @@ make bootstrap   # Homebrew tools + generate the Xcode project
 make run         # build and launch
 ```
 
-Requires macOS 15+, Xcode 26+ and Homebrew. Run `make help` for all commands.
+Requires macOS 26+, Xcode 26+ and Homebrew. Run `make help` for all commands.
 
 ## Workflow
 

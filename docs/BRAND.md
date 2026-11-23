@@ -2,9 +2,9 @@
 
 ## Style
 
-Modern macOS with Liquid Glass (macOS 26+), restrained and close to Apple's own apps.
+Modern macOS with Liquid Glass, restrained and close to Apple's own apps. Snowflake requires macOS 26 Tahoe or later, so it uses the native Liquid Glass APIs directly, with no fallbacks.
 
-- **Glass belongs to controls and navigation only**: the menu bar panel and its tiles, toolbars, buttons and the Settings sidebar. Content uses standard materials. Use `snowGlass(in:)` and `SnowGlassContainer` from `SnowflakeKit`; they fall back to materials on macOS 15.
+- **Glass belongs to controls and navigation only**: the menu bar panel and its tiles, toolbars, buttons and the Settings sidebar. Content uses standard materials. Prefer the system glass button styles (`.glass`, `.glassProminent`); for custom shapes use `snowGlass(in:)` and `SnowGlassContainer` from `SnowflakeKit`.
 - **Prefer stock components.** `NavigationSplitView`, grouped `Form`, system toggles and pickers adopt Liquid Glass automatically.
 - **One signature motion.** Panel tiles morph between collapsed and expanded with `glassEffectID`. Everything else uses the single `Animation.snow` spring, and honours Reduce Motion.
 - **Follow system settings.** Accent color (by default), Reduce Transparency, Increase Contrast and the Liquid Glass transparency slider.

@@ -119,9 +119,9 @@ struct AboutPane: View {
                 .padding(.bottom, 6)
             HStack {
                 Link("View Releases", destination: URL(string: "https://github.com/ChrisC920/Snowflake/releases")!)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                 Link("View on GitHub", destination: URL(string: "https://github.com/ChrisC920/Snowflake")!)
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.glass)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

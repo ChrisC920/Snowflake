@@ -4,6 +4,10 @@ All notable changes to Snowflake are listed here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+### Changed
+
+- Snowflake now requires macOS 26 Tahoe or later and uses native Liquid Glass everywhere, with no material fallbacks.
+
 ### Added
 
 - Menu bar app with a Liquid Glass panel of tool tiles, plus a compact menu style.
