@@ -1,0 +1,19 @@
+// Shared build settings for every configuration.
+
+MARKETING_VERSION = 0.1.0
+CURRENT_PROJECT_VERSION = 1
+
+SWIFT_VERSION = 6.0
+SWIFT_STRICT_CONCURRENCY = complete
+ENABLE_USER_SCRIPT_SANDBOXING = YES
+DEAD_CODE_STRIPPING = YES
+
+// Signing: ad-hoc by default so anyone can build without an Apple Developer account.
+// To sign with your team, create Config/Local.xcconfig (gitignored) with:
+//   DEVELOPMENT_TEAM = ABCDE12345
+//   CODE_SIGN_IDENTITY = Apple Development
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+
+#include? "Local.xcconfig"

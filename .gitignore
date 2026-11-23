@@ -1,0 +1,24 @@
+# macOS
+.DS_Store
+
+# Xcode (the project is generated from project.yml)
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+build/
+DerivedData/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Local signing overrides
+Config/Local.xcconfig
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# taste-skill scratch output
+.taste-skill/
+.impeccable/

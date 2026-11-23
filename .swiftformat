@@ -1,0 +1,10 @@
+--swiftversion 6.0
+--exclude build,Packages/SnowflakeKit/.build,.claude,*.xcodeproj
+--indent 4
+--maxwidth 140
+--wraparguments before-first
+--wrapcollections before-first
+--commas always
+--self remove
+--importgrouping alpha
+--disable redundantReturn,wrapMultilineStatementBraces

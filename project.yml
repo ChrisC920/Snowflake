@@ -1,0 +1,61 @@
+# XcodeGen spec — the source of truth for Snowflake.xcodeproj (which is not committed).
+# Regenerate with `make generate` after adding, moving or removing files.
+name: Snowflake
+options:
+  bundleIdPrefix: com.chrisc920
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  xcodeVersion: "27.2"
+
+packages:
+  SnowflakeKit:
+    path: Packages/SnowflakeKit
+
+configFiles:
+  Debug: Config/Debug.xcconfig
+  Release: Config/Release.xcconfig
+
+targets:
+  Snowflake:
+    type: application
+    platform: macOS
+    sources:
+      - path: Snowflake
+    dependencies:
+      - package: SnowflakeKit
+        product: SnowflakeKit
+      - package: SnowflakeKit
+        product: SnowflakeModules
+    info:
+      path: Snowflake/Info.plist
+      properties:
+        CFBundleDisplayName: Snowflake
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.utilities
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        LSUIElement: true
+        NSHumanReadableCopyright: "Copyright © 2026 Snowflake contributors. MIT License."
+    entitlements:
+      path: Snowflake/Snowflake.entitlements
+      properties:
+        com.apple.security.app-sandbox: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.chrisc920.Snowflake
+        PRODUCT_NAME: Snowflake
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_HARDENED_RUNTIME: true
+        COMBINE_HIDPI_IMAGES: true
+
+schemes:
+  Snowflake:
+    build:
+      targets:
+        Snowflake: all
+    run:
+      config: Debug
+    archive:
+      config: Release

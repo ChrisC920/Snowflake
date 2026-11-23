@@ -1,0 +1,28 @@
+name: New tool
+description: Propose a new tool (module) for Snowflake
+labels: [module]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Tool name
+      placeholder: Night Shift
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What does it do?
+      description: One or two sentences, from the user's point of view.
+    validations:
+      required: true
+  - type: textarea
+    id: tile
+    attributes:
+      label: Tile and controls
+      description: What does the tile's icon button do? What appears when the tile expands? Any Settings?
+  - type: textarea
+    id: permissions
+    attributes:
+      label: System access
+      description: Does it need Accessibility, Screen Recording, Full Disk Access, a helper or private APIs?
