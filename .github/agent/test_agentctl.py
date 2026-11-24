@@ -515,6 +515,12 @@ class ReconcilerTests(unittest.TestCase):
         r.gate(gh.pulls[10], gh.issues[1])
         self.assertNotIn("enablePullRequestAutoMerge", gh.graphql_calls)
 
+    def test_gate_accepts_review_status_without_creator(self):
+        r, gh = self.gate_setup({"Lint": "success", "Test": "success", "Build": "success", "Policy": "success"}, review="failure")
+        gh.statuses["abc1234def"][0]["creator"] = None  # how GitHub records GITHUB_TOKEN statuses
+        r.gate(gh.pulls[10], gh.issues[1])
+        self.assertEqual(gh.markers(10, kinds={"remediation-request"})[0]["reason"], "review")
+
     def test_gate_behind_updates_branch_first(self):
         r, gh = self.gate_setup({"Lint": "success", "Test": "success", "Build": "success", "Policy": "success"}, mergeable_state="behind")
         r.gate(gh.pulls[10], gh.issues[1])

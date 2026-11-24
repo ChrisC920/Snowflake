@@ -628,8 +628,10 @@ def pr_check_state(gh, cfg, sha):
             failed_ids[name] = run["id"]
     combined = gh.request("GET", gh.r("/commits/%s/status" % sha))[0] or {}
     review = next((s for s in combined.get("statuses", []) if s["context"] == REVIEW_CONTEXT), None)
-    if review and (review.get("creator") or {}).get("login") != "github-actions[bot]":
-        review = None  # ignore statuses not posted by our workflow
+    # GitHub records statuses posted with GITHUB_TOKEN as github-actions[bot] or with no creator.
+    # The agent's GitHub App has no Statuses permission, so it can't post either form.
+    if review and (review.get("creator") or {}).get("login") not in (None, "github-actions[bot]"):
+        review = None  # ignore statuses posted by anyone else
     if not review:
         state[REVIEW_CONTEXT] = "missing"
     else:
