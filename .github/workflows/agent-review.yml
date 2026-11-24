@@ -134,8 +134,9 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
-          # The PR author and pusher is the agent's GitHub App; only that bot may trigger this.
-          allowed_bots: ${{ vars.AGENT_BOT_LOGIN }}
+          # PRs are authored and pushed by the agent's GitHub App; retries are dispatched by
+          # Agent Control as github-actions[bot]. No other bot may trigger a review.
+          allowed_bots: github-actions,${{ vars.AGENT_BOT_LOGIN }}
           prompt: ${{ steps.ws.outputs.prompt }}
           claude_args: ${{ needs.prepare.outputs.claude_args }}
       - name: Classify run
