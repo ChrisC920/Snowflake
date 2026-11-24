@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "summary"],
+  "properties": {
+    "status": {"type": "string", "enum": ["completed", "needs_human"], "description": "completed: changes committed and validated as far as possible. needs_human: stopped because a decision, credential or out-of-scope change is required."},
+    "summary": {"type": "string", "description": "Two to five sentences for the PR summary."},
+    "question": {"type": "string", "description": "For needs_human: the specific question or blocker, with the options you see."},
+    "pr_title": {"type": "string", "description": "Imperative, sentence case, under 72 characters, no trailing period."},
+    "requirements": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["requirement", "how"], "properties": {"requirement": {"type": "string"}, "how": {"type": "string"}}}},
+    "implementation_notes": {"type": "string"},
+    "tests": {"type": "array", "items": {"type": "string"}, "description": "Tests added or changed, as 'path: what it covers'."},
+    "validation": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["command", "result"], "properties": {"command": {"type": "string"}, "result": {"type": "string", "enum": ["passed", "failed", "not_run"]}, "notes": {"type": "string"}}}},
+    "breaking_changes": {"type": "string"},
+    "risks": {"type": "string"},
+    "deployment_notes": {"type": "string"},
+    "ui_changed": {"type": "boolean"},
+    "changelog_updated": {"type": "boolean"}
+  }
+}

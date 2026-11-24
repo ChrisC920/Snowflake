@@ -1,7 +1,11 @@
 name: New tool
-description: Propose a new tool (module) for Snowflake
+description: "Propose a new tool (module) for Snowflake"
 labels: [module]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Write this so an agent can do it without asking. When it's ready, add the **`agent-ready`** label to delegate it, or add **`human-only`** to keep agents away from it.
   - type: input
     id: name
     attributes:
@@ -10,19 +14,54 @@ body:
     validations:
       required: true
   - type: textarea
-    id: what
+    id: problem
     attributes:
-      label: What does it do?
-      description: One or two sentences, from the user's point of view.
+      label: Problem or objective
+      description: What does it do? One or two sentences, from the user's point of view.
     validations:
       required: true
   - type: textarea
-    id: tile
+    id: requirements
     attributes:
-      label: Tile and controls
-      description: What does the tile's icon button do? What appears when the tile expands? Any Settings?
+      label: Requirements
+      description: Tile and controls. What does the tile's icon button do? What appears when the tile expands? Any Settings? What system access does it need (Accessibility, Screen Recording, private APIs)?
+    validations:
+      required: true
   - type: textarea
-    id: permissions
+    id: acceptance
     attributes:
-      label: System access
-      description: Does it need Accessibility, Screen Recording, Full Disk Access, a helper or private APIs?
+      label: Acceptance criteria
+      description: Checkable statements. The AI reviewer verifies each one, and the PR can't pass review while one is unmet.
+      placeholder: |
+        - [ ] …
+        - [ ] Tests cover …
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Architectural context
+      description: Relevant files, modules, patterns or docs (for example docs/ADDING_A_MODULE.md).
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: "Write `Depends on #12` for each issue that must close first. An agent won't start until they're closed."
+      placeholder: "Depends on #"
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and out of scope
+      description: What must not change, and what not to do.
+  - type: textarea
+    id: validation
+    attributes:
+      label: Expected validation
+      description: Tests to add, commands to run, and UI states to check with `make screenshots`.
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Sets the matching priority label automatically.
+      options: [Medium, High, Low]
+      default: 0
