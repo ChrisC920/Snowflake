@@ -21,28 +21,26 @@ struct ModuleTileView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 9) {
-                iconButton
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(module.descriptor.name)
-                        .font(.callout.weight(.medium))
-                    Text(module.statusText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .contentTransition(.opacity)
+            if isExpanded {
+                // Full-width row: icon, name and status side by side, then the tool's controls.
+                HStack(spacing: 9) {
+                    iconButton
+                    labels
+                    Spacer(minLength: 0)
+                    chevron
                 }
-                .lineLimit(1)
-                Spacer(minLength: 0)
-                if canExpand {
-                    Image(systemName: "chevron.down")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                if let expandedContent {
+                    expandedContent
+                        .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
                 }
-            }
-            if let expandedContent {
-                expandedContent
-                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+            } else {
+                // Half-width tile, Control Center style: icon on top, name and status below.
+                HStack(alignment: .top) {
+                    iconButton
+                    Spacer(minLength: 0)
+                    chevron
+                }
+                labels
             }
         }
         .padding(11)
@@ -55,6 +53,29 @@ struct ModuleTileView: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(module.descriptor.name)
         .accessibilityValue(module.statusText)
+    }
+
+    private var labels: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(module.descriptor.name)
+                .font(.callout.weight(.medium))
+            Text(module.statusText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .contentTransition(.opacity)
+        }
+        .lineLimit(1)
+    }
+
+    @ViewBuilder
+    private var chevron: some View {
+        if canExpand {
+            Image(systemName: "chevron.down")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                .padding(.top, isExpanded ? 0 : 4)
+        }
     }
 
     private var iconButton: some View {

@@ -26,14 +26,17 @@ public struct ChoicePills<Value: Hashable>: View {
                         withAnimation(.snow) { selection = choice.value }
                     } label: {
                         Text(choice.title)
-                            .font(.caption)
+                            .font(.caption.weight(isSelected ? .semibold : .regular))
+                            .foregroundStyle(isSelected ? Frost.onAccent : .primary)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .foregroundStyle(isSelected ? Frost.onAccent : .primary)
                             .contentShape(.capsule)
                     }
                     .buttonStyle(.plain)
-                    .snowGlass(in: .capsule, tint: isSelected ? accent : nil, interactive: true)
+                    // Selected: a solid accent fill, like the tile's icon circle. It reads the same
+                    // whether or not Snowflake is the active app (system prominent styles gray out).
+                    .background(isSelected ? accent : .clear, in: .capsule)
+                    .snowGlass(in: .capsule, interactive: true)
                     .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
             }

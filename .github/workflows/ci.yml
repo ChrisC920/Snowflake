@@ -57,3 +57,28 @@ jobs:
         run: |
           xcodebuild -project Snowflake.xcodeproj -scheme Snowflake -configuration Debug \
             -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
+
+  screenshots:
+    name: Screenshots
+    runs-on: macos-26
+    # Visual review aid, not a gate: download the artifact from the run summary.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build (Debug)
+        run: |
+          xcodegen generate
+          xcodebuild -project Snowflake.xcodeproj -scheme Snowflake -configuration Debug \
+            -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
+      - name: Capture UI states
+        run: scripts/screenshots.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: build/screenshots/*.png
+          if-no-files-found: warn

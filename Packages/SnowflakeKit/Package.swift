@@ -1,9 +1,9 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 import PackageDescription
 
 let package = Package(
     name: "SnowflakeKit",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS(.v26)],
     products: [
         .library(name: "SnowflakeKit", targets: ["SnowflakeKit"]),
         .library(name: "SnowflakeModules", targets: ["SnowflakeModules"]),

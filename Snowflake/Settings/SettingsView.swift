@@ -9,7 +9,11 @@ enum SettingsPane: Hashable {
 /// Settings window: a Liquid Glass sidebar (drawn by the system) and grouped-form panes.
 struct SettingsView: View {
     @Environment(ModuleRegistry.self) private var registry
-    @State private var selection: SettingsPane? = .general
+    @State private var selection: SettingsPane?
+
+    init(initialPane: SettingsPane = .general) {
+        _selection = State(initialValue: initialPane)
+    }
 
     var body: some View {
         NavigationSplitView {

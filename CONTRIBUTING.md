@@ -9,7 +9,7 @@ make bootstrap   # Homebrew tools + generate the Xcode project
 make run         # build and launch
 ```
 
-Requires macOS 15+, Xcode 26+ and Homebrew. Run `make help` for all commands.
+Requires macOS 26+, Xcode 26+ and Homebrew. Run `make help` for all commands.
 
 ## Workflow
 
@@ -21,6 +21,7 @@ Requires macOS 15+, Xcode 26+ and Homebrew. Run `make help` for all commands.
    make format
    make lint
    make test
+   make screenshots   # for UI changes: review build/screenshots/
    ```
 5. Open a pull request against `main` and fill in the template. CI (lint, tests, build) must pass. Pull requests are squash-merged.
 
