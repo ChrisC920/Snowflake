@@ -39,12 +39,15 @@ jobs:
     # Fork PRs get no secrets and a read-only token, so they're skipped here (maintainers review those by hand).
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Waits up to 15 min for CI's screenshots so the reviewer can see the UI.
+    timeout-minutes: 25
     permissions:
       contents: read
       issues: read
       pull-requests: read
       statuses: write
+      actions: read
+      checks: read
     outputs:
       run: ${{ steps.prep.outputs.run }}
       sha: ${{ steps.prep.outputs.sha }}
@@ -123,7 +126,8 @@ jobs:
         id: ws
         run: |
           mkdir -p .agent-context
-          cp "$RUNNER_TEMP/review/context.md" .agent-context/context.md
+          cp "$RUNNER_TEMP/review/context.md" "$RUNNER_TEMP/review/diff.patch" .agent-context/
+          if [ -d "$RUNNER_TEMP/review/screenshots" ]; then cp -R "$RUNNER_TEMP/review/screenshots" .agent-context/; fi
           echo ".agent-context/" >> .git/info/exclude
           delim="EOF_$(openssl rand -hex 8)"
           { echo "prompt<<$delim"; cat "$RUNNER_TEMP/review/prompt.md"; echo "$delim"; } >> "$GITHUB_OUTPUT"

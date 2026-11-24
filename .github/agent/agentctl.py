@@ -628,8 +628,10 @@ def pr_check_state(gh, cfg, sha):
             failed_ids[name] = run["id"]
     combined = gh.request("GET", gh.r("/commits/%s/status" % sha))[0] or {}
     review = next((s for s in combined.get("statuses", []) if s["context"] == REVIEW_CONTEXT), None)
-    if review and (review.get("creator") or {}).get("login") != "github-actions[bot]":
-        review = None  # ignore statuses not posted by our workflow
+    # GitHub records statuses posted with GITHUB_TOKEN as github-actions[bot] or with no creator.
+    # The agent's GitHub App has no Statuses permission, so it can't post either form.
+    if review and (review.get("creator") or {}).get("login") not in (None, "github-actions[bot]"):
+        review = None  # ignore statuses posted by anyone else
     if not review:
         state[REVIEW_CONTEXT] = "missing"
     else:
@@ -790,6 +792,12 @@ class Reconciler:
 
         if REVIEW_CONTEXT in pending and state[REVIEW_CONTEXT] == "missing":
             self.ensure_review(pr, marks)
+        elif review and review["state"] == "pending" and "paused" in (review.get("description") or "").lower() and not cfg.paused:
+            # The review was skipped while agents were paused; run it now.
+            if not any(m["kind"] == "review-retry" and m.get("sha") == sha for m in marks) and not self.dry:
+                self.note("PR #%d: running the review that was skipped while agents were paused" % prn)
+                gh.dispatch_workflow("agent-review.yml", self.default_branch, {"pr": str(prn)})
+                gh.comment(prn, "Running the AI review that was skipped while agents were paused.\n\n" + marker("review-retry", sha=sha))
         if pending:
             self.relabel(issue, L_VALIDATING)
             return
@@ -1342,7 +1350,6 @@ IMPLEMENT_TOOLS = [
 REVIEW_TOOLS = [
     "Read", "Glob", "Grep", "LS", "TodoWrite", "Task",
     "Bash(git diff:*)", "Bash(git log:*)", "Bash(git show:*)", "Bash(git status:*)", "Bash(git merge-base:*)",
-    "Bash(ls:*)", "Bash(wc:*)", "Bash(cat:*)",
 ]
 ALWAYS_DENY = [
     "WebFetch", "WebSearch", "Bash(curl:*)", "Bash(wget:*)", "Bash(git push:*)", "Bash(git remote:*)",
@@ -1639,6 +1646,22 @@ CI (`Lint`, `Test`, `Build`, `Policy`) and the independent AI review (`agent/rev
     )
 
 
+UPDATES_HEADING = "## Updates since the first version"
+
+
+def updated_pr_body(old_body, meta, result, sha, cfg):
+    """Re-render the PR description from the latest agent report, keeping a log of earlier rounds,
+    so reviewers never read claims that later commits made untrue."""
+    history = ""
+    if UPDATES_HEADING in old_body:
+        history = old_body.split(UPDATES_HEADING, 1)[1].split("\n---\n<sub>", 1)[0].strip()
+    entry = "- `%s` (%s): %s" % (sha[:7], meta.get("reason") or "fix", (result.get("summary") or "").replace("\n", " ")[:600])
+    history = (history + "\n" + entry).strip()
+    body = render_pr_body(meta, result, cfg)
+    footer_at = body.rfind("\n---\n<sub>")
+    return body[:footer_at] + "\n" + UPDATES_HEADING + "\n\n" + history + "\n" + body[footer_at:]
+
+
 def cmd_publish_implement(cfg, args):
     """Ubuntu job holding the GitHub App token: push, open or update the PR, report."""
     gh = GitHub(cfg.token, cfg)
@@ -1702,6 +1725,11 @@ def cmd_publish_implement(cfg, args):
     if mode == "remediate":
         prn = meta["pr"]
         if outcome == "completed" and pushed_sha:
+            try:
+                cur = gh.pull(prn)
+                app.request("PATCH", app.r("/pulls/%d" % prn), {"body": updated_pr_body(cur.get("body") or "", meta, result, pushed_sha, cfg)})
+            except GitHubError as e:
+                warn("Could not update the PR description: %s" % e)
             app.comment(prn, "🔧 **Remediation pushed** (`%s`). %s\n\n%s\n\nCI and the AI review re-run on the new commit; any earlier approval no longer applies.\n\n%s"
                         % (pushed_sha[:7], run_link, result.get("summary") or "", marker("remediation-result", outcome=outcome, sha=pushed_sha)))
             finish([L_VALIDATING], [L_WORKING], None)
@@ -1759,6 +1787,67 @@ def patch_id(repo_dir, base, head):
     return pid[0] if pid else hashlib.sha1(diff).hexdigest()
 
 
+def download_artifact(gh, url, dest_zip):
+    """Download an artifact zip without forwarding our token to the storage redirect."""
+    opener = urllib.request.build_opener(_NoRedirect)
+    req = urllib.request.Request(url)
+    req.add_header("Authorization", "Bearer " + gh.token)
+    req.add_header("Accept", "application/vnd.github+json")
+    loc = None
+    try:
+        opener.open(req, timeout=60)
+    except urllib.error.HTTPError as e:
+        loc = e.headers.get("Location") if e.code in (301, 302, 303, 307) else None
+    if not loc:
+        return False
+    with urllib.request.urlopen(loc, timeout=120) as resp, open(dest_zip, "wb") as f:
+        f.write(resp.read())
+    return True
+
+
+def fetch_ci_screenshots(gh, sha, out_dir, timeout=900, limit=24):
+    """Wait for CI's Screenshots job on this commit, then extract its PNGs. Returns file names."""
+    import zipfile
+
+    deadline = time.time() + timeout
+    run = None
+    while time.time() < deadline:
+        runs = [r for r in gh.paginate(gh.r("/commits/%s/check-runs" % sha), limit=300)
+                if r["name"] == "Screenshots" and (r.get("app") or {}).get("slug") == "github-actions"]
+        run = max(runs, key=lambda r: r["id"]) if runs else None
+        if run and run["status"] == "completed":
+            break
+        time.sleep(20)
+    if not run or run["status"] != "completed":
+        warn("CI screenshots weren't ready within %d s" % timeout)
+        return []
+    m = re.search(r"/actions/runs/(\d+)", run.get("details_url") or "")
+    if not m:
+        return []
+    arts = gh.paginate(gh.r("/actions/runs/%s/artifacts" % m.group(1)))
+    art = next((a for a in arts if a["name"] == "screenshots" and not a.get("expired")), None)
+    if not art:
+        return []
+    os.makedirs(out_dir, exist_ok=True)
+    zpath = os.path.join(out_dir, "_screenshots.zip")
+    if not download_artifact(gh, art["archive_download_url"], zpath):
+        return []
+    names = []
+    with zipfile.ZipFile(zpath) as z:
+        members = [n for n in z.namelist() if n.lower().endswith(".png") and not n.endswith("/")]
+        real = {os.path.basename(n) for n in members if not n.endswith(".render.png")}
+        # Prefer real captures; fall back to in-process renders when the capture is missing.
+        chosen = [n for n in members if not n.endswith(".render.png")]
+        chosen += [n for n in members if n.endswith(".render.png") and os.path.basename(n).replace(".render.png", ".png") not in real]
+        for n in sorted(chosen)[:limit]:
+            base = os.path.basename(n)  # never trust paths inside the archive
+            with z.open(n) as src, open(os.path.join(out_dir, base), "wb") as dst:
+                dst.write(src.read(8 * 1024 * 1024))
+            names.append(base)
+    os.remove(zpath)
+    return names
+
+
 def cmd_prepare_review(cfg, args):
     gh = GitHub(cfg.token, cfg)
     prn = int(args.pr)
@@ -1805,6 +1894,24 @@ def cmd_prepare_review(cfg, args):
         thread = trusted_thread(gh, cfg, linked)
         if thread:
             ctx += ["### Maintainer discussion", ""] + thread + [""]
+    base_ref = "origin/" + pr["base"]["ref"]
+    mb = git("merge-base", base_ref, sha, cwd=args.repo_dir)
+    commits = git("log", "--format=- %h %s", "%s..%s" % (mb, sha), cwd=args.repo_dir)
+    stat = git("diff", "--stat", mb, sha, cwd=args.repo_dir)
+    diff = git("diff", mb, sha, cwd=args.repo_dir)
+    with open(os.path.join(args.out, "diff.patch"), "w") as f:
+        f.write(truncate(diff, 400000))
+    ctx += ["## Commits in this PR (oldest last)", "", commits, "", "## Files changed", "", "```", stat, "```",
+            "", "The full diff is in `%s/diff.patch`." % CONTEXT_DIR, ""]
+    files = git("diff", "--name-only", mb, sha, cwd=args.repo_dir).splitlines()
+    if any(f.endswith(".swift") and "/Tests/" not in "/" + f for f in files):
+        shots = fetch_ci_screenshots(gh, sha, os.path.join(args.out, "screenshots"), timeout=args.screenshot_timeout)
+        if shots:
+            ctx += ["## Screenshots from CI (this exact commit)", "",
+                    "CI built this commit and captured every UI preview state in light and dark. They are in `%s/screenshots/`: %s. "
+                    "Open them with the Read tool. They are the visual validation evidence for this PR." % (CONTEXT_DIR, ", ".join(shots)), ""]
+        else:
+            ctx += ["## Screenshots", "", "CI screenshots for this commit weren't available (the job failed, timed out or produced none). Don't fail the PR only for that; judge the UI from the code and note the gap as a low finding.", ""]
     with open(os.path.join(args.out, "context.md"), "w") as f:
         f.write("\n".join(ctx))
     prompt = render_prompt("review.md", PR=prn, BASE_SHA=pr["base"]["sha"], HEAD_SHA=sha, BASE_REF=pr["base"]["ref"], CONTEXT_FILE=CONTEXT_DIR + "/context.md")
@@ -1986,6 +2093,7 @@ def main(argv=None):
     s.add_argument("--pr", required=True)
     s.add_argument("--out", required=True)
     s.add_argument("--repo-dir", default=".")
+    s.add_argument("--screenshot-timeout", type=int, default=900)
     s = sub.add_parser("publish-review")
     s.add_argument("--pr", required=True)
     s.add_argument("--sha", required=True)

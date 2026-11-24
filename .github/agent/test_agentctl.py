@@ -222,6 +222,19 @@ class PureFunctionTests(unittest.TestCase):
         self.assertEqual(A.execution_error(json.dumps([{"type": "result", "is_error": False, "result": "ok"}])), "")
         self.assertEqual(A.execution_error("not json"), "")
 
+    def test_pr_body_keeps_update_history(self):
+        cfg = A.Config({"GITHUB_REPOSITORY": "me/repo"})
+        meta = {"issue": 3, "reason": "review"}
+        v1 = A.render_pr_body(meta, {"summary": "first"}, cfg)
+        v2 = A.updated_pr_body(v1, meta, {"summary": "second"}, "aaaaaaa1", cfg)
+        v3 = A.updated_pr_body(v2, meta, {"summary": "third"}, "bbbbbbb2", cfg)
+        self.assertIn("third", v3.split(A.UPDATES_HEADING)[0])  # summary re-rendered from the latest report
+        log = v3.split(A.UPDATES_HEADING)[1]
+        self.assertLess(log.index("aaaaaaa"), log.index("bbbbbbb"))
+        self.assertEqual(v3.count(A.UPDATES_HEADING), 1)
+        self.assertIn("Closes #3", v3)
+        self.assertTrue(v3.rstrip().endswith("</sub>"))
+
     def test_marker_roundtrip_and_trust(self):
         cfg = A.Config({"GITHUB_REPOSITORY": "me/repo", "AGENT_BOT_LOGIN": "agent-bot[bot]"})
         gh = FakeGitHub(cfg)
@@ -514,6 +527,19 @@ class ReconcilerTests(unittest.TestCase):
         gh.statuses["abc1234def"][0]["creator"] = {"login": "agent-bot[bot]"}  # forged by the agent's app
         r.gate(gh.pulls[10], gh.issues[1])
         self.assertNotIn("enablePullRequestAutoMerge", gh.graphql_calls)
+
+    def test_gate_accepts_review_status_without_creator(self):
+        r, gh = self.gate_setup({"Lint": "success", "Test": "success", "Build": "success", "Policy": "success"}, review="failure")
+        gh.statuses["abc1234def"][0]["creator"] = None  # how GitHub records GITHUB_TOKEN statuses
+        r.gate(gh.pulls[10], gh.issues[1])
+        self.assertEqual(gh.markers(10, kinds={"remediation-request"})[0]["reason"], "review")
+
+    def test_gate_reruns_review_skipped_while_paused(self):
+        r, gh = self.gate_setup({"Lint": "success", "Test": "success", "Build": "success", "Policy": "success"}, review="pending")
+        gh.statuses["abc1234def"][0]["description"] = "Agents paused (AGENTS_PAUSED)"
+        r.gate(gh.pulls[10], gh.issues[1])
+        r.gate(gh.pulls[10], gh.issues[1])
+        self.assertEqual([w for w, _ in gh.dispatches], ["agent-review.yml"])
 
     def test_gate_behind_updates_branch_first(self):
         r, gh = self.gate_setup({"Lint": "success", "Test": "success", "Build": "success", "Policy": "success"}, mergeable_state="behind")
