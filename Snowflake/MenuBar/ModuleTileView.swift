@@ -50,6 +50,7 @@ struct ModuleTileView: View {
             canExpand ? toggleExpanded() : module.performPrimaryAction()
         }
         .snowGlass(in: .rect(cornerRadius: 18), interactive: true)
+        .clipShape(.rect(cornerRadius: 18))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(module.descriptor.name)
         .accessibilityValue(module.statusText)

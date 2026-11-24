@@ -6,6 +6,7 @@ import SwiftUI
 struct MenuPanelView: View {
     @Environment(ModuleRegistry.self) private var registry
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var expandedID: String?
     @Namespace private var glass
 
@@ -37,6 +38,8 @@ struct MenuPanelView: View {
         }
         .padding(14)
         .frame(width: 320)
+        // Expanding or collapsing a tile reflows the grid; animate it instead of snapping.
+        .animation(reduceMotion ? nil : .snow, value: expandedID)
     }
 
     private var header: some View {

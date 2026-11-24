@@ -28,8 +28,12 @@ public struct ChoicePills<Value: Hashable>: View {
                         Text(choice.title)
                             .font(.caption.weight(isSelected ? .semibold : .regular))
                             .foregroundStyle(isSelected ? Frost.onAccent : .primary)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 6)
+                            // Equal-width choices share the row, so they can't overflow it.
+                            .frame(maxWidth: .infinity)
                             .contentShape(.capsule)
                     }
                     .buttonStyle(.plain)
