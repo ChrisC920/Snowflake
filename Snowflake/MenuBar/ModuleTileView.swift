@@ -80,7 +80,7 @@ struct ModuleTileView: View {
 
     private var iconButton: some View {
         Button {
-            withAnimation(.snow) { module.performPrimaryAction() }
+            withAnimation(reduceMotion ? nil : .snow) { module.performPrimaryAction() }
         } label: {
             Image(systemName: module.descriptor.symbol)
                 .font(.system(size: 14, weight: .medium))

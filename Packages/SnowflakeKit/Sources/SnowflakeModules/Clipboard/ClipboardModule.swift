@@ -66,10 +66,11 @@ public final class ClipboardModule: SnowflakeModule {
 
     public func performPrimaryAction() {
         guard Self.cleanFormatting(on: pasteboard) else { return }
-        withAnimation(.snow) { didJustClean = true }
+        let animation: Animation? = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .snow
+        withAnimation(animation) { didJustClean = true }
         Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(700))
-            withAnimation(.snow) { self?.didJustClean = false }
+            withAnimation(animation) { self?.didJustClean = false }
         }
     }
 

@@ -6,7 +6,7 @@ All notable changes to Snowflake are listed here. The format follows [Keep a Cha
 
 ### Changed
 
-- Choices in an expanded tile (15 min, 1 hour, Until off; On click, Automatically) share the row in equal widths instead of overflowing it, and tiles clip their content.
+- Choices in an expanded tile (15 min, 1 hour, Until off; On click, Automatically) share the row in equal widths instead of overflowing it.
 - Expanding or collapsing a tile in the panel now animates the layout change instead of snapping.
 - Half-width panel tiles stack icon, name and status (Control Center style) so tool names aren't truncated.
 - The selected choice in a tile is a solid accent fill, so it reads clearly in light and dark.
