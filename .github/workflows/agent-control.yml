@@ -10,7 +10,7 @@
 #   - queues bounded remediation for failed CI, AI review findings, conflicts or your requested changes
 #   - updates branches that fell behind main, so they re-validate before merging
 #   - recovers interrupted runs and pauses on subscription usage limits
-#   - mirrors state onto the GitHub Project (Status, Priority, Type, Agent)
+#   - mirrors state onto the GitHub Project (Status, Priority, Work type, Agent)
 #
 # Emergency stop: set the repository variable AGENTS_PAUSED=true.
 name: Agent Control

@@ -205,18 +205,9 @@ You do these steps yourself, because they involve credentials or account-level s
    - `gh secret set AGENT_APP_PRIVATE_KEY < ~/Downloads/<app>.private-key.pem`, then delete the `.pem` file.
    - `gh variable set AGENT_BOT_LOGIN --body '<app-slug>[bot]'`
 3. **Project sync** (optional but recommended). Create a [classic token with only the `project` scope](https://github.com/settings/tokens/new?scopes=project&description=Snowflake%20project%20sync), then run `gh secret set PROJECT_TOKEN`. Fine-grained tokens and GitHub Apps can't write to user-owned Projects. Set `gh variable set AGENT_PROJECT_NUMBER --body <n>`.
-4. **Project board.** Created by `agentctl bootstrap`, with fields Status, Priority, Type, Agent, Effort and Iteration. In the project's **Workflows** settings, enable **Auto-add to project** (filter `is:issue`) and **Item closed → Done**. Create these views (the API can't create views):
-
-   | View | Layout | Filter / group |
-   |---|---|---|
-   | Development board | Board | group by Status |
-   | Prioritized backlog | Table | `status:Backlog,Ready` sort Priority |
-   | Feature roadmap | Roadmap | `type:Feature,"New tool"` by Iteration |
-   | Agent task queue | Table | `status:Queued,Blocked label:agent-ready` sort Priority |
-   | Active development | Board | `status:"In Progress",Validation,"Changes Requested"` |
-   | Awaiting approval | Table | `status:"In Review",Approved` |
-   | Blocked | Table | `status:Blocked` |
-
+4. **Project board.** Done for you: [Snowflake Development](https://github.com/users/ChrisC920/projects/4) (project 4, linked to this repo). It has the fields Status, Priority, Work type, Agent, Effort and Iteration, and seven views: Development board, Prioritized backlog, Feature roadmap, Agent task queue, Active development, Awaiting approval and Blocked. To recreate it: `GITHUB_REPOSITORY=ChrisC920/Snowflake GH_TOKEN=$(gh auth token) python3 .github/agent/agentctl.py bootstrap` (needs `gh auth refresh -s project`). Optional polish in the UI:
+   - In **Workflows**, enable **Auto-add to project** with the filter `is:issue`. The reconciler also adds open issues within 15 minutes.
+   - Set sorting and grouping on the views: sort Prioritized backlog by Priority, and set the Feature roadmap dates to Iteration. The API can't set those.
 5. **Repository settings and branch protection**, applied with `gh` and listed in [the setup PR](#verification-plan): allow auto-merge, allow update branch, required checks `Policy` and `agent/review`, and 1 approval with stale approvals dismissed and last-push approval required.
 
 ## Configuration reference

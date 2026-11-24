@@ -89,6 +89,15 @@ STATUSES = [
     "Approved",
     "Done",
 ]
+PROJECT_VIEWS = [
+    ("Development board", "board", ""),
+    ("Prioritized backlog", "table", "status:Backlog,Ready"),
+    ("Feature roadmap", "roadmap", '"work type":Feature,"New tool"'),
+    ("Agent task queue", "table", "status:Queued,Blocked label:agent-ready"),
+    ("Active development", "board", 'status:"In Progress",Validation,"Changes Requested"'),
+    ("Awaiting approval", "table", 'status:"In Review",Approved'),
+    ("Blocked", "table", "status:Blocked"),
+]
 # Statuses only the automation sets; an issue in one of these with no agent label is reset to Ready.
 AGENT_MANAGED_STATUSES = {"Queued", "In Progress", "Validation", "Changes Requested", "In Review", "Approved"}
 
@@ -1192,7 +1201,7 @@ class Project:
                 want["Priority"] = pr[0]
             ty = [TYPE_LABELS[l] for l in labels if l in TYPE_LABELS]
             if ty:
-                want["Type"] = ty[0]
+                want["Work type"] = ty[0]
             if labels & set(STATE_LABELS + [L_HUMAN]):
                 want["Agent"] = "Claude"
             elif L_HUMAN_ONLY in labels:
@@ -1864,7 +1873,7 @@ def cmd_bootstrap(cfg, args):
     selects = {
         "Status": opts(STATUSES, ["GRAY", "BLUE", "PURPLE", "YELLOW", "ORANGE", "PINK", "RED", "RED", "GREEN", "GREEN"]),
         "Priority": opts(["High", "Medium", "Low"], ["RED", "YELLOW", "GRAY"]),
-        "Type": opts(["Feature", "New tool", "Bug", "Refactor", "Testing", "Documentation", "Tech debt"], ["BLUE", "PURPLE", "RED", "GRAY", "GREEN", "YELLOW", "ORANGE"]),
+        "Work type": opts(["Feature", "New tool", "Bug", "Refactor", "Testing", "Documentation", "Tech debt"], ["BLUE", "PURPLE", "RED", "GRAY", "GREEN", "YELLOW", "ORANGE"]),
         "Agent": opts(["Claude", "Human", "Codex"], ["ORANGE", "BLUE", "GRAY"]),
         "Effort": opts(["XS", "S", "M", "L", "XL"], ["GRAY", "GREEN", "YELLOW", "ORANGE", "RED"]),
     }
@@ -1892,6 +1901,13 @@ def cmd_bootstrap(cfg, args):
             log("created field Iteration (2-week)")
         except GitHubError as e:
             warn("Could not create the Iteration field via API (%s); add it in the project settings." % e.message)
+    if not args.project_number:  # views only for a newly created project, so reruns don't duplicate them
+        for name, layout, flt in PROJECT_VIEWS:
+            try:
+                pg.request("POST", "/users/%s/projectsV2/%d/views" % (cfg.project_owner, num), {"name": name, "layout": layout, "filter": flt})
+                log("created view %s" % name)
+            except GitHubError as e:
+                warn("view %s: %s (create it in the project UI)" % (name, e.message))
     try:
         repo_id = gh.request("GET", gh.repo_path)[0]["node_id"]
         pg.graphql("mutation($p:ID!,$r:ID!){linkProjectV2ToRepository(input:{projectId:$p,repositoryId:$r}){clientMutationId}}", {"p": proj["id"], "r": repo_id})
