@@ -176,6 +176,7 @@ The agent's GitHub App can't approve PRs. It can't push to `main` (PRs are requi
 | Forged results | `agent/review` is honored only when posted by `github-actions[bot]`, and checks only when created by GitHub Actions. |
 | Workflow injection | No `pull_request_target`. Untrusted strings (branch names, bodies) reach shell only through `env:`. Every third-party action is pinned to a commit SHA. Every job declares least-privilege `permissions:`. Orchestration code is always checked out from the default branch, never from a PR. |
 | Runaway loops and cost | Bounded retries, signature-based repeat detection, a usage-limit cooldown, a global concurrency cap, per-job timeouts and an emergency stop. Events made by `GITHUB_TOKEN` don't trigger workflows, and the reconciler is idempotent. |
+| Build-cache poisoning | CI saves the SwiftPM and DerivedData caches only on pushes to `main`. PR runs and agent runs restore them read-only, so build output from unreviewed code never reaches another run. |
 | Audit | Every transition is an issue or PR comment with a link to its run. All runs are in the Actions tab. |
 
 Changes to authentication, secrets, workflows, permissions, branch protection or merge policy are protected paths. Make them yourself, in a human-authored PR.

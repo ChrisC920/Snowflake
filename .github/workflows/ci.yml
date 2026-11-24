@@ -85,9 +85,26 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: latest-stable
+      - name: Xcode version (cache key)
+        id: xcode
+        run: echo "version=$(xcodebuild -version | tr '\n' ' ' | tr -cs 'A-Za-z0-9.' '-')" >> "$GITHUB_OUTPUT"
+      - name: Restore SwiftPM cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: Packages/SnowflakeKit/.build
+          key: spm-${{ steps.xcode.outputs.version }}-${{ github.sha }}
+          restore-keys: spm-${{ steps.xcode.outputs.version }}-
       - name: Package tests
         working-directory: Packages/SnowflakeKit
         run: swift test
+      - name: Save SwiftPM cache
+        # Only trusted pushes to main write caches. PR and agent runs only read them, so
+        # build output from unreviewed code can never reach another run.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: Packages/SnowflakeKit/.build
+          key: spm-${{ steps.xcode.outputs.version }}-${{ github.sha }}
 
   build:
     name: Build
@@ -99,6 +116,15 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: latest-stable
+      - name: Xcode version (cache key)
+        id: xcode
+        run: echo "version=$(xcodebuild -version | tr '\n' ' ' | tr -cs 'A-Za-z0-9.' '-')" >> "$GITHUB_OUTPUT"
+      - name: Restore DerivedData cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/DerivedData
+          key: dd-${{ steps.xcode.outputs.version }}-${{ github.sha }}
+          restore-keys: dd-${{ steps.xcode.outputs.version }}-
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project
@@ -107,6 +133,14 @@ jobs:
         run: |
           xcodebuild -project Snowflake.xcodeproj -scheme Snowflake -configuration Debug \
             -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
+      - name: Save DerivedData cache
+        # Only trusted pushes to main write caches. PR and agent runs only read them, so
+        # build output from unreviewed code can never reach another run.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/DerivedData
+          key: dd-${{ steps.xcode.outputs.version }}-${{ github.sha }}
 
   screenshots:
     name: Screenshots
