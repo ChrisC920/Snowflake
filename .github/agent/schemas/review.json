@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "summary", "acceptance_criteria", "findings"],
+  "properties": {
+    "verdict": {"type": "string", "enum": ["approve", "request_changes", "needs_human"], "description": "approve only if every acceptance criterion is met and there are no critical or high findings."},
+    "summary": {"type": "string"},
+    "acceptance_criteria": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["criterion", "met", "evidence"], "properties": {"criterion": {"type": "string"}, "met": {"type": "boolean"}, "evidence": {"type": "string", "description": "File and line, test name, or why it is not met."}}}},
+    "findings": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["severity", "category", "title", "detail"], "properties": {
+      "severity": {"type": "string", "enum": ["critical", "high", "medium", "low", "nit"]},
+      "category": {"type": "string", "enum": ["correctness", "regression", "security", "acceptance-criteria", "architecture", "maintainability", "performance", "error-handling", "tests", "complexity", "breaking-change", "style"]},
+      "file": {"type": "string"},
+      "line": {"type": "integer"},
+      "title": {"type": "string"},
+      "detail": {"type": "string"},
+      "suggestion": {"type": "string"}
+    }}}
+  }
+}

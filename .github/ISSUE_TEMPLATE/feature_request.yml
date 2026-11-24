@@ -1,20 +1,60 @@
 name: Feature request
-description: Suggest an improvement to Snowflake
+description: "Suggest an improvement to Snowflake"
 labels: [enhancement]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Write this so an agent can do it without asking. When it's ready, add the **`agent-ready`** label to delegate it, or add **`human-only`** to keep agents away from it.
   - type: textarea
     id: problem
     attributes:
-      label: What problem would this solve?
+      label: Problem or objective
+      description: What problem would this solve, and for whom?
     validations:
       required: true
   - type: textarea
-    id: idea
+    id: requirements
     attributes:
-      label: What would you like to happen?
+      label: Requirements
+      description: What should happen? Describe behavior, not implementation.
     validations:
       required: true
   - type: textarea
-    id: alternatives
+    id: acceptance
     attributes:
-      label: Alternatives you've considered
+      label: Acceptance criteria
+      description: Checkable statements. The AI reviewer verifies each one, and the PR can't pass review while one is unmet.
+      placeholder: |
+        - [ ] …
+        - [ ] Tests cover …
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Architectural context
+      description: Relevant files, modules, patterns or docs (for example docs/ADDING_A_MODULE.md).
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: "Write `Depends on #12` for each issue that must close first. An agent won't start until they're closed."
+      placeholder: "Depends on #"
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and out of scope
+      description: What must not change, and what not to do.
+  - type: textarea
+    id: validation
+    attributes:
+      label: Expected validation
+      description: Tests to add, commands to run, and UI states to check with `make screenshots`.
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Sets the matching priority label automatically.
+      options: [Medium, High, Low]
+      default: 0

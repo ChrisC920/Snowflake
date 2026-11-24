@@ -25,6 +25,10 @@ Requires macOS 26+, Xcode 26+ and Homebrew. Run `make help` for all commands.
    ```
 5. Open a pull request against `main` and fill in the template. CI (lint, tests, build) must pass. Pull requests are squash-merged.
 
+## Agent-implemented issues
+
+Maintainers can delegate an issue to an AI agent by adding the `agent-ready` label. The agent works on an `agent/issue-<N>` branch and opens a PR. CI and an independent AI review check it, and a maintainer's approval merges it. See [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md). Issue forms ask for acceptance criteria and dependencies so issues are ready to delegate.
+
 ## Conventions
 
 - Swift 6 with strict concurrency. UI and modules are `@MainActor`.
