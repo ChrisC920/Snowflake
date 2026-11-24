@@ -216,6 +216,12 @@ class PureFunctionTests(unittest.TestCase):
         self.assertEqual(A.classify_execution("API Error: 429 rate_limit_error"), "usage_limit")
         self.assertIsNone(A.classify_execution(""))
 
+    def test_execution_error(self):
+        text = json.dumps([{"type": "result", "subtype": "success", "is_error": True, "result": "Invalid API key · Please run /login"}])
+        self.assertEqual(A.execution_error(text), "Invalid API key · Please run /login")
+        self.assertEqual(A.execution_error(json.dumps([{"type": "result", "is_error": False, "result": "ok"}])), "")
+        self.assertEqual(A.execution_error("not json"), "")
+
     def test_marker_roundtrip_and_trust(self):
         cfg = A.Config({"GITHUB_REPOSITORY": "me/repo", "AGENT_BOT_LOGIN": "agent-bot[bot]"})
         gh = FakeGitHub(cfg)

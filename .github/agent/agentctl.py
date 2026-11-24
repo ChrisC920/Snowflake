@@ -296,6 +296,23 @@ def classify_execution(text):
     return "usage_limit" if USAGE_LIMIT_RE.search(blob) else None
 
 
+def execution_error(text):
+    """The final error message of a failed Claude run (e.g. an auth or API error), or ''.
+    Only the result message is read, never tool output, so nothing sensitive is surfaced."""
+    try:
+        msgs = json.loads(text or "")
+    except ValueError:
+        return ""
+    if not isinstance(msgs, list):
+        return ""
+    results = [m for m in msgs if isinstance(m, dict) and m.get("type") == "result"]
+    if not results or not results[-1].get("is_error"):
+        return ""
+    r = results[-1]
+    msg = r.get("result") or ", ".join(str(e) for e in (r.get("errors") or [])) or r.get("subtype", "")
+    return str(msg).replace("\n", " ")[:400]
+
+
 def review_verdict(result, blocking_severities):
     """Deterministic gate over the reviewer's structured output.
     Returns (state, description, blocking_findings)."""
@@ -1486,6 +1503,10 @@ def cmd_finish_implement(cfg, args):
     outcome = result.get("status") if result.get("status") in ("completed", "needs_human") else None
     if not outcome:
         outcome = classify_execution(exec_text) or "failed"
+        err = execution_error(exec_text)
+        if err:
+            result["error"] = err
+            warn("Claude run failed: " + err)
 
     # Never commit an unresolved merge: abort it and report failure instead.
     if git("diff", "--name-only", "--diff-filter=U") or os.path.exists(os.path.join(git("rev-parse", "--git-dir"), "MERGE_HEAD")):
@@ -1640,8 +1661,9 @@ def cmd_publish_implement(cfg, args):
         gh.dispatch_workflow("agent-control.yml", base, {})
 
     if not cfg.app_token:
-        finish([L_HUMAN], [L_WORKING], "🛑 **Needs a human.** The agent's GitHub App token couldn't be created, so nothing was pushed (%s). Check that the app is installed on this repository with Contents, Pull requests and Issues write access, and that `AGENT_APP_CLIENT_ID` and `AGENT_APP_PRIVATE_KEY` are set. Then comment `/agent retry`.\n\n%s"
-               % (run_link, marker("needs-human", key="app-token-%s" % cfg.run_id)))
+        also = (" Separately, Claude reported: `%s`." % result["error"].replace("`", "'")) if result.get("error") else ""
+        finish([L_HUMAN], [L_WORKING], "🛑 **Needs a human.** The agent's GitHub App token couldn't be created, so nothing was pushed (%s).%s Check that the app is installed on this repository with Contents, Pull requests and Issues write access, and that `AGENT_APP_CLIENT_ID` and `AGENT_APP_PRIVATE_KEY` are set. Then comment `/agent retry`.\n\n%s"
+               % (run_link, also, marker("needs-human", key="app-token-%s" % cfg.run_id)))
         return 0
 
     if outcome == "usage_limit":
@@ -1698,13 +1720,14 @@ def cmd_publish_implement(cfg, args):
         finish([L_HUMAN], [L_WORKING], msg)
         return 0
     if outcome != "completed" or not pushed_sha:
+        detail = (" Claude reported: `%s`." % result["error"].replace("`", "'")) if result.get("error") else ""
         resets = [m["_at"] for m in gh.markers(n, kinds={"reset"})]
         since = max(resets) if resets else None
         attempts = len([m for m in gh.markers(n, kinds={"run-start"}) if m.get("mode") == "implement" and (since is None or m["_at"] > since)])
         if attempts < cfg.max_impl_attempts:
-            finish([L_READY], [L_WORKING], "⚠️ The agent run ended with `%s` (%s). Re-queued (attempt %d of %d used).\n\n%s" % (outcome, run_link, attempts, cfg.max_impl_attempts, marker("run-failed", outcome=outcome)))
+            finish([L_READY], [L_WORKING], "⚠️ The agent run ended with `%s` (%s).%s Re-queued (attempt %d of %d used).\n\n%s" % (outcome, run_link, detail, attempts, cfg.max_impl_attempts, marker("run-failed", outcome=outcome)))
         else:
-            finish([L_HUMAN], [L_WORKING], "🛑 **Needs a human.** The agent run ended with `%s` and no attempts remain (%d). %s\n\n%s" % (outcome, cfg.max_impl_attempts, run_link, marker("needs-human", key="impl-limit-%s" % cfg.run_id)))
+            finish([L_HUMAN], [L_WORKING], "🛑 **Needs a human.** The agent run ended with `%s` and no attempts remain (%d). %s%s\n\n%s" % (outcome, cfg.max_impl_attempts, run_link, detail, marker("needs-human", key="impl-limit-%s" % cfg.run_id)))
         return 0
 
     title = (result.get("pr_title") or issue["title"]).strip()[:120]
@@ -1795,6 +1818,9 @@ def cmd_prepare_review(cfg, args):
 def cmd_classify(cfg, args):
     text = open(args.execution_file, errors="replace").read() if args.execution_file and os.path.exists(args.execution_file) else ""
     set_output("usage_limit", "true" if classify_execution(text) == "usage_limit" else "false")
+    err = execution_error(text)
+    if err:
+        warn("Claude run failed: " + err)
     return 0
 
 
