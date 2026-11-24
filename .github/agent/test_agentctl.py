@@ -331,6 +331,47 @@ class FinishImplementTests(unittest.TestCase):
         self.assertNotIn("<<<<<<<", open("a.txt").read())
 
 
+class CommandTests(unittest.TestCase):
+    def run_command(self, gh, body, number=3, login="maintainer"):
+        path = os.path.join(tempfile.mkdtemp(), "event.json")
+        json.dump({"comment": {"id": 555, "body": body, "user": {"login": login}}, "issue": {"number": number}}, open(path, "w"))
+        os.environ["GITHUB_EVENT_PATH"] = path
+        orig = A.GitHub
+        A.GitHub = lambda token, cfg: gh
+        try:
+            A.cmd_command(gh.cfg, None)
+        finally:
+            A.GitHub = orig
+
+    def test_retry_clears_working_and_is_idempotent(self):
+        _, gh = make()
+        gh.add_issue(3, [A.L_WORKING, A.L_HUMAN])
+        gh.active = ["Agent implement #3"]
+        cancelled = []
+        orig_request = gh.request
+
+        def request(method, path, body=None, params=None, accept=None):
+            if method == "POST" and path.endswith("/cancel"):
+                cancelled.append(path)
+                return None, ""
+            if method == "POST" and "/reactions" in path:
+                return {}, ""
+            return orig_request(method, path, body, params, accept)
+
+        gh.request = request
+        self.run_command(gh, "/agent retry")
+        self.run_command(gh, "/agent retry")  # duplicate delivery of the same comment
+        self.assertEqual(gh.labels(3), {A.L_READY})
+        self.assertEqual(len(cancelled), 1)
+        self.assertEqual(len(gh.markers(3, kinds={"reset"})), 1)
+
+    def test_untrusted_commenter_ignored(self):
+        _, gh = make()
+        gh.add_issue(3, [A.L_HUMAN])
+        self.run_command(gh, "/agent retry", login="outsider")
+        self.assertEqual(gh.labels(3), {A.L_HUMAN})
+
+
 class ReconcilerTests(unittest.TestCase):
     def test_dispatch_respects_concurrency_and_priority(self):
         r, gh = make()

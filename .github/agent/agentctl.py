@@ -1244,6 +1244,20 @@ def cmd_command(cfg, args):
     issue = gh.issue(issue_n)
     labels = label_names(issue)
 
+    # GitHub occasionally delivers the same comment event twice: act on each comment once.
+    seen = gh.markers(issue_n) + (gh.markers(pr["number"]) if pr else [])
+    if any(str(m.get("comment_id")) == str(comment["id"]) for m in seen):
+        log("comment %s was already handled" % comment["id"])
+        return 0
+
+    def cancel_runs():
+        for run in gh.active_runs("agent-implement.yml"):
+            if re.search(r"#%d\b" % issue_n, run.get("display_title") or ""):
+                try:
+                    gh.request("POST", gh.r("/actions/runs/%d/cancel" % run["id"]))
+                except GitHubError as e:
+                    warn("cancel run %s: %s" % (run["id"], e))
+
     def react(content):
         try:
             gh.request("POST", gh.r("/issues/comments/%d/reactions" % comment["id"]), {"content": content})
@@ -1252,21 +1266,17 @@ def cmd_command(cfg, args):
 
     if first.startswith("/agent retry"):
         react("rocket")
-        gh.comment(issue_n, "↩️ Retry requested by @%s: attempt counters reset.\n\n%s" % (login, marker("reset", by=login)))
+        cancel_runs()
+        gh.comment(issue_n, "↩️ Retry requested by @%s: any active run was stopped and attempt counters reset.\n\n%s" % (login, marker("reset", by=login, comment_id=comment["id"])))
         if pr:
-            gh.set_state_labels(issue_n, labels, add=[L_VALIDATING], remove=[L_HUMAN, L_FIX, L_REVIEW, L_APPROVED, L_READY])
+            gh.set_state_labels(issue_n, labels, add=[L_VALIDATING], remove=[L_HUMAN, L_WORKING, L_FIX, L_REVIEW, L_APPROVED, L_READY])
         else:
-            gh.set_state_labels(issue_n, labels, add=[L_READY], remove=[L_HUMAN, L_VALIDATING, L_FIX])
+            gh.set_state_labels(issue_n, labels, add=[L_READY], remove=[L_HUMAN, L_WORKING, L_VALIDATING, L_FIX])
     elif first.startswith("/agent cancel"):
         react("-1")
-        for run in gh.active_runs("agent-implement.yml"):
-            if re.search(r"#%d\b" % issue_n, run.get("display_title") or ""):
-                try:
-                    gh.request("POST", gh.r("/actions/runs/%d/cancel" % run["id"]))
-                except GitHubError as e:
-                    warn("cancel run %s: %s" % (run["id"], e))
+        cancel_runs()
         gh.set_state_labels(issue_n, labels, remove=STATE_LABELS + [L_BLOCKED])
-        gh.comment(issue_n, "⏹️ Cancelled by @%s. Active agent runs were stopped and the issue left the agent queue. Any open PR stays open; add `agent-ready` or comment `/agent retry` to resume.\n\n%s" % (login, marker("cancel", by=login)))
+        gh.comment(issue_n, "⏹️ Cancelled by @%s. Active agent runs were stopped and the issue left the agent queue. Any open PR stays open; add `agent-ready` or comment `/agent retry` to resume.\n\n%s" % (login, marker("cancel", by=login, comment_id=comment["id"])))
     elif first.startswith("/agent status"):
         marks = gh.markers(issue_n)
         lines = ["**Agent status for #%d**" % issue_n, "", "- Labels: %s" % (", ".join(sorted(labels)) or "none")]
