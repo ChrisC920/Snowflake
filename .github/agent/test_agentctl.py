@@ -216,6 +216,12 @@ class PureFunctionTests(unittest.TestCase):
         self.assertEqual(A.classify_execution("API Error: 429 rate_limit_error"), "usage_limit")
         self.assertIsNone(A.classify_execution(""))
 
+    def test_execution_error(self):
+        text = json.dumps([{"type": "result", "subtype": "success", "is_error": True, "result": "Invalid API key · Please run /login"}])
+        self.assertEqual(A.execution_error(text), "Invalid API key · Please run /login")
+        self.assertEqual(A.execution_error(json.dumps([{"type": "result", "is_error": False, "result": "ok"}])), "")
+        self.assertEqual(A.execution_error("not json"), "")
+
     def test_marker_roundtrip_and_trust(self):
         cfg = A.Config({"GITHUB_REPOSITORY": "me/repo", "AGENT_BOT_LOGIN": "agent-bot[bot]"})
         gh = FakeGitHub(cfg)
@@ -329,6 +335,47 @@ class FinishImplementTests(unittest.TestCase):
         res = self.run_finish({"status": "completed", "summary": "x"})
         self.assertEqual(res["outcome"], "failed")
         self.assertNotIn("<<<<<<<", open("a.txt").read())
+
+
+class CommandTests(unittest.TestCase):
+    def run_command(self, gh, body, number=3, login="maintainer"):
+        path = os.path.join(tempfile.mkdtemp(), "event.json")
+        json.dump({"comment": {"id": 555, "body": body, "user": {"login": login}}, "issue": {"number": number}}, open(path, "w"))
+        os.environ["GITHUB_EVENT_PATH"] = path
+        orig = A.GitHub
+        A.GitHub = lambda token, cfg: gh
+        try:
+            A.cmd_command(gh.cfg, None)
+        finally:
+            A.GitHub = orig
+
+    def test_retry_clears_working_and_is_idempotent(self):
+        _, gh = make()
+        gh.add_issue(3, [A.L_WORKING, A.L_HUMAN])
+        gh.active = ["Agent implement #3"]
+        cancelled = []
+        orig_request = gh.request
+
+        def request(method, path, body=None, params=None, accept=None):
+            if method == "POST" and path.endswith("/cancel"):
+                cancelled.append(path)
+                return None, ""
+            if method == "POST" and "/reactions" in path:
+                return {}, ""
+            return orig_request(method, path, body, params, accept)
+
+        gh.request = request
+        self.run_command(gh, "/agent retry")
+        self.run_command(gh, "/agent retry")  # duplicate delivery of the same comment
+        self.assertEqual(gh.labels(3), {A.L_READY})
+        self.assertEqual(len(cancelled), 1)
+        self.assertEqual(len(gh.markers(3, kinds={"reset"})), 1)
+
+    def test_untrusted_commenter_ignored(self):
+        _, gh = make()
+        gh.add_issue(3, [A.L_HUMAN])
+        self.run_command(gh, "/agent retry", login="outsider")
+        self.assertEqual(gh.labels(3), {A.L_HUMAN})
 
 
 class ReconcilerTests(unittest.TestCase):

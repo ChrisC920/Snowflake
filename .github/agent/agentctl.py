@@ -296,6 +296,23 @@ def classify_execution(text):
     return "usage_limit" if USAGE_LIMIT_RE.search(blob) else None
 
 
+def execution_error(text):
+    """The final error message of a failed Claude run (e.g. an auth or API error), or ''.
+    Only the result message is read, never tool output, so nothing sensitive is surfaced."""
+    try:
+        msgs = json.loads(text or "")
+    except ValueError:
+        return ""
+    if not isinstance(msgs, list):
+        return ""
+    results = [m for m in msgs if isinstance(m, dict) and m.get("type") == "result"]
+    if not results or not results[-1].get("is_error"):
+        return ""
+    r = results[-1]
+    msg = r.get("result") or ", ".join(str(e) for e in (r.get("errors") or [])) or r.get("subtype", "")
+    return str(msg).replace("\n", " ")[:400]
+
+
 def review_verdict(result, blocking_severities):
     """Deterministic gate over the reviewer's structured output.
     Returns (state, description, blocking_findings)."""
@@ -1244,6 +1261,20 @@ def cmd_command(cfg, args):
     issue = gh.issue(issue_n)
     labels = label_names(issue)
 
+    # GitHub occasionally delivers the same comment event twice: act on each comment once.
+    seen = gh.markers(issue_n) + (gh.markers(pr["number"]) if pr else [])
+    if any(str(m.get("comment_id")) == str(comment["id"]) for m in seen):
+        log("comment %s was already handled" % comment["id"])
+        return 0
+
+    def cancel_runs():
+        for run in gh.active_runs("agent-implement.yml"):
+            if re.search(r"#%d\b" % issue_n, run.get("display_title") or ""):
+                try:
+                    gh.request("POST", gh.r("/actions/runs/%d/cancel" % run["id"]))
+                except GitHubError as e:
+                    warn("cancel run %s: %s" % (run["id"], e))
+
     def react(content):
         try:
             gh.request("POST", gh.r("/issues/comments/%d/reactions" % comment["id"]), {"content": content})
@@ -1252,21 +1283,17 @@ def cmd_command(cfg, args):
 
     if first.startswith("/agent retry"):
         react("rocket")
-        gh.comment(issue_n, "↩️ Retry requested by @%s: attempt counters reset.\n\n%s" % (login, marker("reset", by=login)))
+        cancel_runs()
+        gh.comment(issue_n, "↩️ Retry requested by @%s: any active run was stopped and attempt counters reset.\n\n%s" % (login, marker("reset", by=login, comment_id=comment["id"])))
         if pr:
-            gh.set_state_labels(issue_n, labels, add=[L_VALIDATING], remove=[L_HUMAN, L_FIX, L_REVIEW, L_APPROVED, L_READY])
+            gh.set_state_labels(issue_n, labels, add=[L_VALIDATING], remove=[L_HUMAN, L_WORKING, L_FIX, L_REVIEW, L_APPROVED, L_READY])
         else:
-            gh.set_state_labels(issue_n, labels, add=[L_READY], remove=[L_HUMAN, L_VALIDATING, L_FIX])
+            gh.set_state_labels(issue_n, labels, add=[L_READY], remove=[L_HUMAN, L_WORKING, L_VALIDATING, L_FIX])
     elif first.startswith("/agent cancel"):
         react("-1")
-        for run in gh.active_runs("agent-implement.yml"):
-            if re.search(r"#%d\b" % issue_n, run.get("display_title") or ""):
-                try:
-                    gh.request("POST", gh.r("/actions/runs/%d/cancel" % run["id"]))
-                except GitHubError as e:
-                    warn("cancel run %s: %s" % (run["id"], e))
+        cancel_runs()
         gh.set_state_labels(issue_n, labels, remove=STATE_LABELS + [L_BLOCKED])
-        gh.comment(issue_n, "⏹️ Cancelled by @%s. Active agent runs were stopped and the issue left the agent queue. Any open PR stays open; add `agent-ready` or comment `/agent retry` to resume.\n\n%s" % (login, marker("cancel", by=login)))
+        gh.comment(issue_n, "⏹️ Cancelled by @%s. Active agent runs were stopped and the issue left the agent queue. Any open PR stays open; add `agent-ready` or comment `/agent retry` to resume.\n\n%s" % (login, marker("cancel", by=login, comment_id=comment["id"])))
     elif first.startswith("/agent status"):
         marks = gh.markers(issue_n)
         lines = ["**Agent status for #%d**" % issue_n, "", "- Labels: %s" % (", ".join(sorted(labels)) or "none")]
@@ -1476,6 +1503,10 @@ def cmd_finish_implement(cfg, args):
     outcome = result.get("status") if result.get("status") in ("completed", "needs_human") else None
     if not outcome:
         outcome = classify_execution(exec_text) or "failed"
+        err = execution_error(exec_text)
+        if err:
+            result["error"] = err
+            warn("Claude run failed: " + err)
 
     # Never commit an unresolved merge: abort it and report failure instead.
     if git("diff", "--name-only", "--diff-filter=U") or os.path.exists(os.path.join(git("rev-parse", "--git-dir"), "MERGE_HEAD")):
@@ -1630,8 +1661,9 @@ def cmd_publish_implement(cfg, args):
         gh.dispatch_workflow("agent-control.yml", base, {})
 
     if not cfg.app_token:
-        finish([L_HUMAN], [L_WORKING], "🛑 **Needs a human.** The agent's GitHub App token couldn't be created, so nothing was pushed (%s). Check that the app is installed on this repository with Contents, Pull requests and Issues write access, and that `AGENT_APP_CLIENT_ID` and `AGENT_APP_PRIVATE_KEY` are set. Then comment `/agent retry`.\n\n%s"
-               % (run_link, marker("needs-human", key="app-token-%s" % cfg.run_id)))
+        also = (" Separately, Claude reported: `%s`." % result["error"].replace("`", "'")) if result.get("error") else ""
+        finish([L_HUMAN], [L_WORKING], "🛑 **Needs a human.** The agent's GitHub App token couldn't be created, so nothing was pushed (%s).%s Check that the app is installed on this repository with Contents, Pull requests and Issues write access, and that `AGENT_APP_CLIENT_ID` and `AGENT_APP_PRIVATE_KEY` are set. Then comment `/agent retry`.\n\n%s"
+               % (run_link, also, marker("needs-human", key="app-token-%s" % cfg.run_id)))
         return 0
 
     if outcome == "usage_limit":
@@ -1688,13 +1720,14 @@ def cmd_publish_implement(cfg, args):
         finish([L_HUMAN], [L_WORKING], msg)
         return 0
     if outcome != "completed" or not pushed_sha:
+        detail = (" Claude reported: `%s`." % result["error"].replace("`", "'")) if result.get("error") else ""
         resets = [m["_at"] for m in gh.markers(n, kinds={"reset"})]
         since = max(resets) if resets else None
         attempts = len([m for m in gh.markers(n, kinds={"run-start"}) if m.get("mode") == "implement" and (since is None or m["_at"] > since)])
         if attempts < cfg.max_impl_attempts:
-            finish([L_READY], [L_WORKING], "⚠️ The agent run ended with `%s` (%s). Re-queued (attempt %d of %d used).\n\n%s" % (outcome, run_link, attempts, cfg.max_impl_attempts, marker("run-failed", outcome=outcome)))
+            finish([L_READY], [L_WORKING], "⚠️ The agent run ended with `%s` (%s).%s Re-queued (attempt %d of %d used).\n\n%s" % (outcome, run_link, detail, attempts, cfg.max_impl_attempts, marker("run-failed", outcome=outcome)))
         else:
-            finish([L_HUMAN], [L_WORKING], "🛑 **Needs a human.** The agent run ended with `%s` and no attempts remain (%d). %s\n\n%s" % (outcome, cfg.max_impl_attempts, run_link, marker("needs-human", key="impl-limit-%s" % cfg.run_id)))
+            finish([L_HUMAN], [L_WORKING], "🛑 **Needs a human.** The agent run ended with `%s` and no attempts remain (%d). %s%s\n\n%s" % (outcome, cfg.max_impl_attempts, run_link, detail, marker("needs-human", key="impl-limit-%s" % cfg.run_id)))
         return 0
 
     title = (result.get("pr_title") or issue["title"]).strip()[:120]
@@ -1785,6 +1818,9 @@ def cmd_prepare_review(cfg, args):
 def cmd_classify(cfg, args):
     text = open(args.execution_file, errors="replace").read() if args.execution_file and os.path.exists(args.execution_file) else ""
     set_output("usage_limit", "true" if classify_execution(text) == "usage_limit" else "false")
+    err = execution_error(text)
+    if err:
+        warn("Claude run failed: " + err)
     return 0
 
 
