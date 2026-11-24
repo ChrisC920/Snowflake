@@ -148,6 +148,9 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Read-only token: the agent can read the repo but cannot push, comment or label.
           github_token: ${{ github.token }}
+          # Runs are dispatched by Agent Control as github-actions[bot]; only this repo's own
+          # workflows can act as that bot, and only after the maintainer checks in agentctl.
+          allowed_bots: github-actions
           prompt: ${{ steps.ws.outputs.prompt }}
           claude_args: ${{ needs.prepare.outputs.claude_args }}
       - name: Classify outcome and bundle commits
@@ -198,6 +201,7 @@ jobs:
           path: ${{ runner.temp }}/agent
       - name: Mint GitHub App token
         id: app
+        continue-on-error: true  # publish-implement reports a missing token on the issue
         uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         with:
           client-id: ${{ vars.AGENT_APP_CLIENT_ID }}

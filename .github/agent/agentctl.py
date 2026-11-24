@@ -1629,6 +1629,11 @@ def cmd_publish_implement(cfg, args):
             gh.comment(n, message)
         gh.dispatch_workflow("agent-control.yml", base, {})
 
+    if not cfg.app_token:
+        finish([L_HUMAN], [L_WORKING], "🛑 **Needs a human.** The agent's GitHub App token couldn't be created, so nothing was pushed (%s). Check that the app is installed on this repository with Contents, Pull requests and Issues write access, and that `AGENT_APP_CLIENT_ID` and `AGENT_APP_PRIVATE_KEY` are set. Then comment `/agent retry`.\n\n%s"
+               % (run_link, marker("needs-human", key="app-token-%s" % cfg.run_id)))
+        return 0
+
     if outcome == "usage_limit":
         add = [L_FIX] if mode == "remediate" else [L_READY]
         finish(add, [L_WORKING], "⏳ Paused: the Claude subscription usage limit was reached (%s). This is queued again automatically after `AGENT_COOLDOWN_MINUTES` (default 60). No API billing is used.\n\n%s" % (run_link, marker("usage-limit")))
