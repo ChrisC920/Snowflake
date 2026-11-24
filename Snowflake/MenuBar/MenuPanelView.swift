@@ -6,6 +6,7 @@ import SwiftUI
 struct MenuPanelView: View {
     @Environment(ModuleRegistry.self) private var registry
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var expandedID: String?
     @Namespace private var glass
 
@@ -67,32 +68,14 @@ struct MenuPanelView: View {
     private func tile(for module: any SnowflakeModule) -> some View {
         let id = module.descriptor.id
         return ModuleTileView(module: module, isExpanded: expandedID == id) {
-            withAnimation(.snow) { expandedID = expandedID == id ? nil : id }
+            withAnimation(reduceMotion ? nil : .snow) { expandedID = expandedID == id ? nil : id }
         }
         .snowGlassID(id, in: glass)
     }
 
     /// Tiles in rows of two; the expanded tile takes a row of its own.
     private var rows: [[String]] {
-        var rows: [[String]] = []
-        var pending: [String] = []
-        for id in registry.enabledModules.map(\.descriptor.id) {
-            if id == expandedID {
-                if !pending.isEmpty {
-                    rows.append(pending); pending = []
-                }
-                rows.append([id])
-            } else {
-                pending.append(id)
-                if pending.count == 2 {
-                    rows.append(pending); pending = []
-                }
-            }
-        }
-        if !pending.isEmpty {
-            rows.append(pending)
-        }
-        return rows
+        TileLayout.rows(ids: registry.enabledModules.map(\.descriptor.id), expandedID: expandedID)
     }
 
     private func showSettings() {

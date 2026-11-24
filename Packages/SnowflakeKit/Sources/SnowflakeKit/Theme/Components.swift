@@ -11,6 +11,7 @@ public struct ChoicePills<Value: Hashable>: View {
     private let choices: [(value: Value, title: String)]
     @Binding private var selection: Value
     @Environment(\.snowAccent) private var accent
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(_ choices: [(value: Value, title: String)], selection: Binding<Value>) {
         self.choices = choices
@@ -23,13 +24,17 @@ public struct ChoicePills<Value: Hashable>: View {
                 ForEach(choices, id: \.value) { choice in
                     let isSelected = choice.value == selection
                     Button {
-                        withAnimation(.snow) { selection = choice.value }
+                        withAnimation(reduceMotion ? nil : .snow) { selection = choice.value }
                     } label: {
                         Text(choice.title)
                             .font(.caption.weight(isSelected ? .semibold : .regular))
                             .foregroundStyle(isSelected ? Frost.onAccent : .primary)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 6)
+                            // Equal-width choices share the row, so they can't overflow it.
+                            .frame(maxWidth: .infinity)
                             .contentShape(.capsule)
                     }
                     .buttonStyle(.plain)
