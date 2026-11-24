@@ -38,8 +38,6 @@ struct MenuPanelView: View {
         }
         .padding(14)
         .frame(width: 320)
-        // Expanding or collapsing a tile reflows the grid; animate it instead of snapping.
-        .animation(reduceMotion ? nil : .snow, value: expandedID)
     }
 
     private var header: some View {
@@ -70,7 +68,7 @@ struct MenuPanelView: View {
     private func tile(for module: any SnowflakeModule) -> some View {
         let id = module.descriptor.id
         return ModuleTileView(module: module, isExpanded: expandedID == id) {
-            withAnimation(.snow) { expandedID = expandedID == id ? nil : id }
+            withAnimation(reduceMotion ? nil : .snow) { expandedID = expandedID == id ? nil : id }
         }
         .snowGlassID(id, in: glass)
     }

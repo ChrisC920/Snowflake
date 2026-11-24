@@ -20,6 +20,7 @@ enum UIPreview {
     enum State: String, CaseIterable {
         case panel
         case panelExpanded = "panel-expanded"
+        case panelClipboardExpanded = "panel-clipboard-expanded"
         case panelEmpty = "panel-empty"
         case settingsGeneral = "settings-general"
         case settingsModules = "settings-modules"
@@ -82,9 +83,17 @@ enum UIPreview {
         #endif
     }
 
+    private static func expandedID(for state: State) -> String? {
+        switch state {
+        case .panelExpanded: "keep-awake"
+        case .panelClipboardExpanded: "clipboard"
+        default: nil
+        }
+    }
+
     private static func prepare(_ state: State, registry: ModuleRegistry) {
         switch state {
-        case .panel, .panelExpanded:
+        case .panel, .panelExpanded, .panelClipboardExpanded:
             // Show an on-state: Keep Awake running.
             registry.module(withID: "keep-awake")?.performPrimaryAction()
         case .panelEmpty:
@@ -96,8 +105,8 @@ enum UIPreview {
 
     private static func makeWindow(for state: State, settings: AppSettings, registry: ModuleRegistry) -> NSWindow {
         switch state {
-        case .panel, .panelExpanded, .panelEmpty:
-            let content = MenuPanelView(initialExpandedID: state == .panelExpanded ? "keep-awake" : nil)
+        case .panel, .panelExpanded, .panelClipboardExpanded, .panelEmpty:
+            let content = MenuPanelView(initialExpandedID: expandedID(for: state))
                 .snowEnvironment(settings: settings, registry: registry)
                 .environment(\.controlActiveState, .key)
                 // Stands in for the menu bar window's own background.
