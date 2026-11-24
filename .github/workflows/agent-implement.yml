@@ -139,6 +139,23 @@ jobs:
           xcode-version: latest-stable
       - name: Install tools
         run: brew install xcodegen swiftlint swiftformat
+      - name: Xcode version (cache key)
+        id: xcode
+        run: echo "version=$(xcodebuild -version | tr '\n' ' ' | tr -cs 'A-Za-z0-9.' '-')" >> "$GITHUB_OUTPUT"
+      # Read-only: reuse build output that CI saved from main, so the agent's first
+      # `make test` doesn't start cold. Agent runs never save caches.
+      - name: Restore SwiftPM cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: Packages/SnowflakeKit/.build
+          key: spm-${{ steps.xcode.outputs.version }}-${{ github.sha }}
+          restore-keys: spm-${{ steps.xcode.outputs.version }}-
+      - name: Restore DerivedData cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/DerivedData
+          key: dd-${{ steps.xcode.outputs.version }}-${{ github.sha }}
+          restore-keys: dd-${{ steps.xcode.outputs.version }}-
       - name: Run Claude
         id: claude
         continue-on-error: true
